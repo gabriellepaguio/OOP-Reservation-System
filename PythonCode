@@ -1,0 +1,598 @@
+"""
+Group 2 Restaurant Reservation System
+
+This program is a restaurant reservation system that connects to a database to store the customers' registration/login
+    information along with their respective reservations. Through this reservation system, the customers could make,
+    modify, and delete current reservations.
+
+To run program:
+    - to go to specific line: ctrl + G
+check lines 132, 459
+
+Group Members:
+Afsoon Negah (100821479)
+Fatima Kaleem (100824197)
+Fajar Faisal (100827261)
+Caleb Agyei (100831561)
+Gabrielle Paguio (100820990)
+"""
+from dataclasses import dataclass
+import datetime
+import sqlite3
+
+# creates a restaurant reservation database that will contain the registrations and reservations table
+conn = sqlite3.connect('Restaurant_Reservation.db')
+cursor = conn.cursor()
+
+@dataclass
+# This class contains the main menu for the reservation system which includes: register/sign-up, login, and exit
+class MainMenu:
+    userC: str = "a"    # stores the user choice of the menu, default value is "a"
+
+    # this method prompts for the user choice of the given options
+    def getUserMenuChoice(self):
+        while True:    # will be an infinite loop if the user does not enter a valid choice
+            self.userC = input("\nMAIN MENU\n\nPlease choose from the following:\na. Register/Sign-up\n"
+                               "b. Login\nc. Exit\nEnter your choice: ")
+
+            self.userC = self.userC.lower()     # makes the input lower case
+
+            if self.userC == "a" or self.userC == "b" or self.userC == "c":
+                break   # breaks the loop if a valid choice was given
+            else:
+                print("\nPlease enter a valid choice.")
+
+        return self.userC   # returns the user choice
+
+# Registration contains the methods to get information needed from the user to make an account
+# Attributes needed are: email, first and last name, password, date of birth, and selected choice (to submit or cancel)
+class Registration:
+    email: str = ""
+    fName: str = ""
+    lName: str = ""
+    passw: str = ""
+    dob: str = ""
+    selectedChoice: str = ""
+
+    # gets the all the data info needed for registration
+    def getUserData(self):
+        print("\nRegistration In Process\n")
+        self.getUserEmail()
+        self.getUserFirstName()
+        self.getUserLastName()
+        self.getUserPassword()
+        self.getUserBirthday()
+
+    # gets the user's email address needed for login process
+    def getUserEmail(self):
+        while True:     # infinite loop until a valid email address is given
+            self.email = input("Enter your email address: ")    # stores email in the class attribute of email
+            self.email = self.email.strip()     # strips any whitespaces before and after input
+            if self.email == "":    # if self.email is an empty string, it will display the prompt again
+                print("\nPlease fill in the data for registration.\n")
+            else:
+                break   # breaks the loop if self.email is not empty
+
+    # gets user's first name for identification
+    def getUserFirstName(self):
+        while True:     # infinite loop until a valid input is given
+            self.fName = input("Enter your first name: ")   # prompt user for first name
+            self.fName = self.fName.strip()     # strips any whitespaces before and after input
+            if self.fName == "":       # if self.fName is an empty string, it will display the prompt again
+                print("\nPlease fill in the data for registration.\n")
+            else:
+                break   # breaks the loop if self.fName is not empty
+
+    # gets user's last name for identification
+    def getUserLastName(self):
+        while True:
+            self.lName = input("Enter your last name: ")
+            self.lName = self.lName.strip()
+            if self.lName == "":
+                print("\nPlease fill in the data for registration.\n")
+            else:
+                break   # breaks the loop if self.fName is not empty
+
+    # gets new password for login authentication
+    def getUserPassword(self):
+        while True:
+            self.passw = input("Enter your new password: ")
+            self.passw = self.passw.strip()
+            if self.passw == "":
+                print("\nPlease fill in the data for registration.\n")
+            else:
+                break
+
+    # gets the user's date of birth in format of YYYY-MM-DD
+    def getUserBirthday(self):
+        while True:
+            birthday = input("Enter your date of birth (in format YYYY-MM-DD): ")
+            try:    # tries to convert it into a date
+                # makes variable birthday into a date using datetime module and store it in self.dob
+                self.dob = datetime.datetime.strptime(birthday, "%Y-%m-%d")
+            except ValueError:  # excepts ValueError if the wrong format is used and will be prompted again
+                print("\nInvalid input, please enter your date of birth using the format given.\n")
+                continue
+            break   # if no errors occur, the loop will break
+
+    # gets the menu choice; if the user wants to submit their registration info or cancel their registration process
+    def getRegMenuChoice(self):
+        while True:
+            self.selectedChoice = input("\nPlease choose one of the following options:\na. Submit\nb. Cancel\nEnter your"
+                                        " choice: ")
+            self.selectedChoice = self.selectedChoice.lower()   # makes user input lower case
+
+            if self.selectedChoice == "a" or self.selectedChoice == "b":    # will only accept "a" or "b"
+                return self.selectedChoice      # returns the choice of the user; breaks the infinite loop
+            else:
+                print("\nPlease enter a valid choice.")
+
+    # creates table for registrations
+    def createTable(self):
+        # to run program, comment out next line when you first run, then uncomment after the first time
+        # cursor.execute("DROP TABLE REGISTRATIONS")
+        # the row number is an argument that will become the primary key
+        cursor.execute("""CREATE TABLE REGISTRATIONS (ROW_NUMBER INT PRIMARY KEY NOT NULL,
+                                EMAIL TEXT, FIRSTNAME TEXT, LASTNAME TEXT, PASSWORD TEXT, BIRTHDAY TEXT);""")
+
+    # inserts the obtained data from user into the database in the table named REGISTRATIONS
+    def insertInfoToTable(self, row):   # the row number will be the reservation number which is unique for each reservation
+        cursor.execute("""INSERT INTO REGISTRATIONS
+                                (ROW_NUMBER, EMAIL, FIRSTNAME, LASTNAME, PASSWORD, BIRTHDAY)
+                                VALUES(?,?,?,?,?,?);""", (row+1, self.email, self.fName, self.lName,
+                                                          self.passw, self.dob.date()))
+        print("\nRegistration Successful!")
+
+# this class contains login process which includes validating the user's email and password
+class Login:
+    email: str = ""
+    password: str = ""
+
+    # gets the email and password of the user and checks if they have an account in the database
+    def getUserFound(self):
+        print("\nLogin In Process\n")
+        self.email = input("Enter your Email: ")    # prompt for user's email
+        self.password = input("Enter your Password: ")  # prompt for user's password
+        self.email = self.email.strip()     # gets rid of any whitespaces for email and password
+        self.password = self.password.strip()
+        if self.email == "" or self.password == "":     # if and empty string is entered, the prompts will occur again
+            print("\nPlease fill in the data for login.")
+        else:     # else the program will check if there is an email and password in the table REGISTRATIONS
+            findUser = ("SELECT * FROM REGISTRATIONS where EMAIL = ? AND PASSWORD = ?")
+            cursor.execute(findUser, [(self.email), (self.password)])
+            if cursor.fetchall():   # if there is a match, login is successful
+                print("\nLogin to the system success...")
+                return True     # returns True since login was successful
+            else:   # else the login menu will not be shown since the login was unsuccessful
+                print("\nThe password or username you’ve entered is incorrect")
+                return False    # returns False: login was unsuccessful
+
+    # displays the modified menu if the login credentials are not correct and prompts if the user would like to
+    # sign-up/register, try logging in again, or exit to the main menu
+    def modifiedMenu(self):
+        while True:
+            inputUser = input("\nPlease choose from the following:\na. Register/Sign-up\n"
+                               "b. Try Login Again\nc. Exit to Main Menu\nEnter your choice: ")
+
+            inputUser = inputUser.lower()   # makes the input lowercase
+
+            if inputUser == "a" or inputUser == "b" or inputUser == "c":
+                break   # if the user input is a/b/c the infinite loop will break
+            else:
+                print("\nPlease enter a valid choice.")     # else the method will repeat for the prompt
+
+        return inputUser    # returns the user input once a valid input has been entered
+
+    # returns the current user's email
+    def getEmail(self):
+        return self.email
+
+# this class contains the menu once the user has been logged in and some options within the menu
+class LoggedIn:
+    selectedChoice: str = ""    # the choice the user has made from the login menu
+
+    # prompts the user for their choice from the given options
+    def getLoginMenu(self):
+        while True:
+            self.selectedChoice = input(
+                "\nPlease choose one of the following options:\na. View Reservation\nb. Make Reservation\nc. Modify Reservation"
+                "\nd. Cancel Reservation\ne. Logout\nEnter your choice: ")
+            self.selectedChoice = self.selectedChoice.lower()   #
+            self.selectedChoice = self.selectedChoice.strip()
+            if self.selectedChoice == "a" or self.selectedChoice == "b" or self.selectedChoice == "c" or \
+                    self.selectedChoice == "d" or self.selectedChoice == "e":
+                return self.selectedChoice      # if the user input is valid (a to e), the choice will be returned
+            else:
+                print("\nPlease enter a valid choice.")     # else the loop will continue until the user input is valid
+
+    # method will cancel the reservation chosen by the user
+    def cancelReservation(self, user_email):    # argument of the user's email is needed
+        # prompt for which reservation they would like to delete using the unique reservation number
+        reservNumDel = input("\nEnter the reservation number of the booking to delete: ")
+        # checks if the reservation number (user input) is in the RESERVATIONS table
+        check = "SELECT EXISTS (SELECT 1 FROM RESERVATIONS WHERE ROW_NUM = ? AND EMAIL = ?)"
+        cursor.execute(check, [reservNumDel, user_email])
+        # if there is no match in the table, then user will be taken back to the login menu
+        if cursor.fetchone()[0] == 0:
+            print("\nInvalid reservation number.")
+        # if a match has been found, the reservation chosen by the user will be deleted
+        else:
+            # deletes the row containing the current user's email and the given reservation number
+            deleteRes = "DELETE FROM RESERVATIONS WHERE EMAIL = ? AND ROW_NUM = ?"
+            cursor.execute(deleteRes, [user_email, reservNumDel])   # executes the deletion
+            print("\nReservation successfully deleted!")
+    # displays all the reservations made by the current user
+    def displayReservations(self, emailInput):  # the user's email is needed as an argument
+        count = 0   # counts the iteration of the for loop
+        emailInput = (emailInput, )     # contains the email of the user
+        cursor.execute("SELECT * FROM RESERVATIONS WHERE EMAIL = ?", emailInput)    # accesses the reservations made by the user
+        myQueryResult = cursor.fetchall()   # fetches the reservations made by the current user
+        # if there is at least one reservation under the user, it will display all the information regarding the reservation
+        if len(myQueryResult) != 0:
+            for rec in myQueryResult:
+                if count == 0:
+                    print(f"\n\nRESERVATIONS UNDER\n{rec[2]} | {rec[1]}")   # prints the user's name and email
+                    count += 1
+                print(f"\nReservation Number: {rec[0]}\nNumber of Days Reserved: "
+                      f"{rec[3]}\nStart Date: {rec[4]}\nEnd Date: {rec[5]}\nNumber of People: {rec[6]}"
+                      f"\nNumber of Rooms: {rec[7]}")
+        else:   # else there are no reservations to print
+            print("\nThere are no reservations under your name.")
+            return len(myQueryResult)   # returns the number of reservations under the current user (will be zero)
+# Reservation class contains all the information regarding users' reservations
+class Reservation:
+    # class attributes that are needed for creating a reservation
+    email = str = ""
+    fullName: str = ""
+    numDays: int = 0
+    fromDate: str = ""
+    toDate: str = ""
+    numPersons: int = 0
+    numRooms: int = 0
+
+    # calls all the methods needed to get the information from the user to complete the reservatoin
+    def getReservationInfo(self, userEmail):    # the user's email is needed as an argument
+        print("\nPlease fill in all the following information for your reservation.\n")
+        self.email = userEmail  # gets the current user's email
+        self.getFullName(userEmail)     # gets the full name of the user using their email
+        while True:     # infinite loop until the number of days match the dates entered from user
+            self.getNumOfDays()     # gets the number of days they would like to reserve
+            self.getStartDate()     # gets the start date of the reservation
+            self.getEndDate()     # gets the end date of the reservation
+            diff = self.toDate - self.fromDate      # calculates the difference between the two dates (start and end date)
+            diff = diff.days    # converts it into an integer
+            # if difference calculated equals the number of days, it continues to obtain input regarding the reservation
+            if diff == self.numDays:
+                self.getNumOfPersons()      # gets number of people for the reservation
+                self.getNumOfRooms()    # gets number of rooms that will be reserved
+                break   # breaks the loop
+            # else the number of days, start, and end date will be prompted again until they match
+            else:
+                print("\nThe number of days and dates entered do not match, please try again.\n")
+    # gets user choice if they want to submit or cancel the creation of the reservation
+    def getReservMenuChoice(self):
+        while True:     #
+            selectedChoice = input("\nPlease select one of the following choices:\na. Submit Reservation\nb. Cancel"
+                                   "\nEnter your choice: ")
+            selectedChoice = selectedChoice.strip()
+            selectedChoice = selectedChoice.lower()
+            if selectedChoice == "a" or selectedChoice == "b":
+                return selectedChoice   # returns the selected choice if given a valid input from user
+            else:
+                print("\nPlease enter a valid input.")
+    # this method will modify the reservation the user will choose
+    def modifyReservation(self, reservNum):
+        isDateCorrect = True    # boolean determining if the dates given match the number of days
+        userInput = ""
+        while userInput != "f":     # while the user does not enter "f": done modifying, loop will continue
+            if isDateCorrect == True:   # if the number of days and given dates match, menu will display
+                userInput = input("\nChoose which section you would like to modify:\na. Number of Days\nb. Start Date\n"
+                                  "c. End Date\nd. Number of People\ne. Number of Rooms\nf. Done Modifying"
+                                  "\nEnter your choice: ")
+            else:   # else the user will be prompted to change either the number of days, start, or end date to match
+                print(f"\nNumber of Days Reserved: {self.numDays}\nStart Date: {self.fromDate.date()}\nEnd Date: "
+                      f"{self.toDate.date()}")      # prints the unmatched dates and number of dates
+                userInput = input("\nThe number of days and dates entered do not match.\n\nWhich of the following "
+                                  "would you like to change:\na. Number of Days\nb. Start Date\nc. End Date"
+                                  "\nEnter your choice: ")
+            userInput = userInput.lower()
+            userInput = userInput.strip()
+            # user chooses to modify the number of days
+            if userInput == "a":
+                self.getNumOfDays()     # user prompt for number of days
+                self.updateNumDays(reservNum)   # updates the reservation for number of days
+                if isDateCorrect == True:   # if the dates and number of dates match, the next data will be filled
+                    # prompts for start and end date
+                    self.getStartDate()
+                    self.getEndDate()
+                    # updates the start and end dates in RESERVATION the table
+                    self.updateStartDate(reservNum)
+                    self.updateEndDate(reservNum)
+                    diff = self.toDate - self.fromDate  # calculates the difference between the two dates (start and end date)
+                    diff = diff.days
+                    if diff == self.numDays:  # if difference and num of days match, sets that the dates match
+                        isDateCorrect = True
+                        continue
+                    else:
+                        isDateCorrect = False   # else sets boolean to false meaning the dates do not match
+                        continue
+            # user chooses to change the start date
+            elif userInput == "b":
+                self.getStartDate()
+                self.updateStartDate(reservNum)
+                diff = self.toDate - self.fromDate
+                diff = diff.days
+                if diff == self.numDays:
+                    isDateCorrect = True
+                    continue
+                else:
+                    isDateCorrect = False
+                    continue
+            # user chooses to change the end date
+            elif userInput == "c":
+                self.getEndDate()
+                self.updateEndDate(reservNum)
+                diff = self.toDate - self.fromDate
+                diff = diff.days
+                if diff == self.numDays:
+                    isDateCorrect = True
+                    continue
+                else:
+                    isDateCorrect = False
+                    continue
+            # user chooses to change the number of people
+            elif userInput == "d":
+                self.getNumOfPersons()
+                self.updateNumPersons(reservNum)
+            # user chooses to change the number of rooms that will be reserved
+            elif userInput == "e":
+                self.getNumOfRooms()
+                self.updateNumRooms(reservNum)
+            # the user is done modifying the current reservation; breaks loop
+            elif userInput == "f":
+                print("\nReservation successfully changed.")
+                break
+            # else the user did not enter a valid option and repeats
+            else:
+                print("\nPlease enter a valid choice.")
+
+    # gets the reservation the user would like to modify
+    def getReservToMod(self, userEmail):
+        reservToMod = input("\nEnter the reservation number of the booking you would like to modify: ")
+        # checks if the reservation exists under the current user's name
+        check = "SELECT EXISTS (SELECT 1 FROM RESERVATIONS WHERE ROW_NUM = ? AND EMAIL = ?)"
+        cursor.execute(check, [reservToMod, userEmail])
+        return cursor.fetchone()[0], reservToMod    # returns the number of matches and the reservation number to modify
+    # updates the number of days in the RESERVATIONS table using the reservation number (primary key, ROW_NUM)
+    def updateNumDays(self, reservToMod):
+        updateNumDays = "UPDATE RESERVATIONS SET NUM_DAYS = ? WHERE ROW_NUM = ?"
+        cursor.execute(updateNumDays, [(self.numDays), (reservToMod)])
+    # updates the start date in the RESERVATIONS table using the reservation number (primary key, ROW_NUM)
+    def updateStartDate(self, reservToMod):
+        updateStartDate = "UPDATE RESERVATIONS SET FROM_DATE = ? WHERE ROW_NUM = ?"
+        cursor.execute(updateStartDate, [(self.fromDate.date()), (reservToMod)])
+    # updates the end date in the RESERVATIONS table using the reservation number (primary key, ROW_NUM)
+    def updateEndDate(self, reservToMod):
+        updateEndDate = "UPDATE RESERVATIONS SET TO_DATE = ? WHERE ROW_NUM = ?"
+        cursor.execute(updateEndDate, [(self.toDate.date()), (reservToMod)])
+    # updates the number of persons in the RESERVATIONS table using the reservation number (primary key, ROW_NUM)
+    def updateNumPersons(self, reservToMod):
+        updateNumPersons = "UPDATE RESERVATIONS SET NUM_PERSONS = ? WHERE ROW_NUM = ?"
+        cursor.execute(updateNumPersons, [(self.numPersons), (reservToMod)])
+    # updates the number of rooms in the RESERVATIONS table using the reservation number (primary key, ROW_NUM)
+    def updateNumRooms(self, reservToMod):
+        updateNumRooms = "UPDATE RESERVATIONS SET NUM_ROOMS = ? WHERE ROW_NUM = ?"
+        cursor.execute(updateNumRooms, [(self.numRooms), (reservToMod)])
+    # gets the full name of the user using their email
+    def getFullName(self, userEmail):
+        email = (userEmail, )
+        cursor.execute("SELECT * FROM REGISTRATIONS WHERE EMAIL = ?", email)    # searching for user's first name
+        firstName = cursor.fetchone()[2]
+        cursor.execute("SELECT * FROM REGISTRATIONS WHERE EMAIL = ?", email)    # searching for user's last nuame
+        lastName = cursor.fetchone()[3]
+        self.fullName = lastName + ', ' + firstName
+        print("Reservation under", self.fullName, "\n")
+    # gets prompt for number of days the user would like to reserve
+    def getNumOfDays(self):
+        while True:
+            self.numDays = input("Enter the number of days: ")
+            self.numDays = self.numDays.strip()
+            try:    # tries to make the input an integer
+                self.numDays = int(self.numDays)
+            except ValueError:   # excepts value error if input is not an integer
+                print("\nPlease enter a valid input.\n")
+                continue
+            if self.numDays == "":
+                print("\nPlease fill in the data for registration.")
+            else:
+                break
+    # gets the start date of the reservation
+    def getStartDate(self):
+        while True:
+            fromDate = input("Enter the start date (in format YYYY-MM-DD): ")
+            try:    # tries to make user input into a date using datetime module
+                self.fromDate = datetime.datetime.strptime(fromDate, "%Y-%m-%d")
+            except ValueError:  # excepts value error if input is not using the given format
+                print("\nInvalid input, please enter the start date using the format given.\n")
+                continue
+            break
+    # gets the end date for the reservation
+    def getEndDate(self):
+        while True:
+            toDate = input("Enter the end date (in format YYYY-MM-DD): ")
+            try:    # tries to make user input into a date using datetime module
+                self.toDate = datetime.datetime.strptime(toDate, "%Y-%m-%d")
+            except ValueError:  # excepts value error if input is not using the given format
+                print("\nInvalid input, please enter the end date using the format given.\n")
+                continue
+            break
+    # gets the number of persons
+    def getNumOfPersons(self):
+        while True:
+            self.numPersons = input("Enter the number of people: ")
+            self.numPersons = self.numPersons.strip()
+            try:    # tries to make the user input into an int
+                self.numPersons = int(self.numPersons)
+            except ValueError:  # excepts value error if the input is not an integer
+                print("\nPlease enter a valid input.\n")
+                continue
+            if self.numPersons == "":
+                print("\nPlease fill in the data for registration.")
+            else:
+                break
+    # gets the number of rooms to reserve
+    def getNumOfRooms(self):
+        while True:
+            self.numRooms = input("Enter the number of rooms: ")
+            self.numRooms = self.numRooms.strip()
+            try:    # tries to convert input into an int
+                self.numRooms = int(self.numRooms)
+            except ValueError:   # excepts value error if input is not an integer
+                print("\nPlease enter a valid input.\n")
+                continue
+            if self.numRooms == "":
+                print("\nPlease fill in the data for registration.")
+            else:
+                break
+    # creates a reservation table using all the attributes given above
+    def makeReservationTable(self):
+        # if you want to run program, comment out next line when you first run, then uncomment after the first time
+        # cursor.execute("DROP TABLE RESERVATIONS")
+        # the reservation number or ROW_NUM is the primary key and will be unique for each reservation
+        cursor.execute("""CREATE TABLE RESERVATIONS (ROW_NUM INT PRIMARY KEY NOT NULL, EMAIL TEXT, FULL_NAME TEXT,
+                                        NUM_DAYS INT, FROM_DATE TEXT, TO_DATE TEXT, NUM_PERSONS INT,
+                                        NUM_ROOMS INT);""")
+    # makes the reservation by inserting the information obtained from user
+    def makeReservation(self, reservNum, userEmail):
+        cursor.execute("""INSERT INTO RESERVATIONS (ROW_NUM, EMAIL, FULL_NAME, NUM_DAYS, FROM_DATE, TO_DATE, NUM_PERSONS,
+                                        NUM_ROOMS) VALUES(?,?,?,?,?,?,?,?);""", (reservNum, userEmail, self.fullName,
+                                                                               self.numDays, self.fromDate.date(),
+                                                                               self.toDate.date(), self.numPersons,
+                                                                               self.numRooms))
+        print("\nReservation Complete!")
+
+#  executes the login menu after the user has been successfully logged in
+# needs the amount of reservations, reservation number, and the current user's email as arguments
+def executeLoginMenu(amtReservation, reservNum, userEmail):
+    loginMenuC = ""
+    userReserve = Reservation()     # creates the instance for reservation to create a reservatoin
+    userLoggedIn = LoggedIn()       # creates the instance for logged in class to access login menu
+
+    while loginMenuC != "e":    # while the user does not enter "e": exit to main menu
+        loginMenuC = userLoggedIn.getLoginMenu()    # prints the login menu
+
+        # if the user wants to display their reservations
+        if loginMenuC == "a":
+            if amtReservation == 0:
+                print("\nThere are no reservations under your name.")
+                continue
+            else:
+                userLoggedIn.displayReservations(userEmail)
+        # if the user wants to create a reservation
+        elif loginMenuC == "b":
+            userReserve.getReservationInfo(userEmail)   # prompts user for all the info required to complete reservation
+            selected = userReserve.getReservMenuChoice()
+            # if the user wants to submit the information entered to create a reservation
+            if selected == "a":
+                if amtReservation == 0:
+                    userReserve.makeReservationTable()      # creates table if it does not exist yet
+                # increments number of reservations and reservation number by one
+                amtReservation += 1
+                reservNum += 1
+                userReserve.makeReservation(reservNum, userEmail)   # creates reservation
+            # else the reservation will not be make
+            else:
+                amtReservation -= 1     # lessens the number of reservations
+                print("\nReservation Cancelled.")
+        # if the user would like to modify their reservations
+        elif loginMenuC == "c":
+            if amtReservation == 0:
+                print("\nThere are no reservations under your name")
+                continue
+            else:   # if there are existing reservations
+                # displays all their reservations and gets which reservation they want to modify; checks if it exists
+                amtReserOfUser = userLoggedIn.displayReservations(userEmail)
+                if amtReserOfUser != 0:
+                    # if a match is found, modify the reservation
+                    numFound, reservToMod = userReserve.getReservToMod(userEmail)
+                    # if no matches were found, the reservation number does not exist under their name
+                    if numFound == 0:
+                        print("\nInvalid reservation number.")
+                        continue
+                    else:
+                        userReserve.modifyReservation(reservToMod)
+        # if the user wants to delete a certain reservation
+        elif loginMenuC == "d":
+            if amtReservation == 0:
+                print("\nThere are no reservation under your name.")
+                continue
+            else:   # if the user has at least one reservation
+                # displays all reservations of user and gets which reservation they want to delete/cancel
+                amtReserOfUser = userLoggedIn.displayReservations(userEmail)
+                if amtReserOfUser != 0:     # if reservation is found, the reservation will be cancelled
+                    userLoggedIn.cancelReservation(userEmail)
+                else:
+                    continue
+
+    return amtReservation, reservNum    # returns the reservation number and number of reservations made
+
+# executes the reservation system including main menu of the reservation system
+def executeReservSys():
+    userChoice = ""
+    amtReservation = 0
+    reservNum = 0
+    amtAccounts = 0
+    isMenuChoiceChosen = False
+
+    user1 = MainMenu()      # creates instance of main menu class
+    userRegister = Registration()   # creates instance of registration class
+    userLogin = Login()     # creates instance of login class
+    # while the user does not select "c": exit the reservation system
+    while userChoice != "c":
+        if isMenuChoiceChosen == False:
+            userChoice = user1.getUserMenuChoice()
+        # if user selects "a": sign-up/register
+        if userChoice == 'a':
+            isMenuChoiceChosen = False
+            userRegister.getUserData()      # gets the user information for registration
+            # gets the menu choice if they want to submit the registration
+            selectedC = userRegister.getRegMenuChoice()
+            # user selected to create the account; confirms registration
+            if selectedC == "a":
+                if amtAccounts == 0:
+                    userRegister.createTable()  # creates registration table if not yet created
+                userRegister.insertInfoToTable(amtAccounts)     # inserts all user info in the table
+                amtAccounts += 1    # increments number of accounts in the table
+            else:   # else registration is cancelled
+                print("\nRegistration Cancelled.")
+        # if user chooses to login instead
+        elif userChoice == "b":
+
+            isMenuChoiceChosen = False
+            isLoginSuccessful = userLogin.getUserFound()    # verifies if login credentials are correct
+            # if login is successful
+            if isLoginSuccessful == True:
+                userEmail = userLogin.getEmail()    # gets current user's email
+                amtReservation, reservNum = executeLoginMenu(amtReservation, reservNum, userEmail) # displays menu
+            # if login is unsuccessful
+            else:
+                # displays modified menu; if they want to try again, sign up, or exit to main menu
+                choice = userLogin.modifiedMenu()
+                # if the user chooses not to exit to main menu
+                if choice != "c":
+                    userChoice = choice     # makes the input for modified menu the input for main menu
+                    isMenuChoiceChosen = True
+                else:
+                    isMenuChoiceChosen = False
+        # if the user would like to exit
+        else:
+            print("\nThank you for using La Carcacha's Reservation System!")
+# main method containing welcome message and executes the reservation system
+def main():
+    print("\nWelcome to La Carcacha!")
+    executeReservSys()
+
+main()  # calls main method
+
+conn.commit()   # saves the database
+conn.close()    # closes the connection to database
